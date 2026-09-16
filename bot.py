@@ -77,21 +77,37 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     {'role': 'system', 'content': system_prompt},
                     {'role': 'user', 'content': user_content}
                 ],
-                format='json'
+                format={
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": ["append_note", "answer_question"]
+                        },
+                        "content": {
+                            "type": "string"
+                        }
+                    },
+                    "required": ["action", "content"]
+                }
             )
             
         response = await asyncio.to_thread(call_ollama)
         resposta_json = json.loads(response['message']['content'])
         
-        acao = resposta_json.get('action')
-        conteudo = resposta_json.get('content')
+        acao = resposta_json.get('action', 'answer_question')
+        conteudo = resposta_json.get('content') or resposta_json.get('resposta') or resposta_json.get('message') or "Sem conteúdo gerado."
+        
+        # Garante que as variáveis sejam strings
+        acao = str(acao)
+        conteudo = str(conteudo)
         
         if acao == 'append_note':
             with open(OBSIDIAN_TEST_FILE, "a", encoding="utf-8") as f:
                 f.write("\n" + conteudo + "\n")
-            await update.message.reply_text("âœ… AnotaÃ§Ã£o salva com sucesso!\n\n" + conteudo)
+            await update.message.reply_text("✅ Anotação salva com sucesso!\n\n" + conteudo)
         else:
-            await update.message.reply_text("ðŸ§  Resposta:\n\n" + conteudo)
+            await update.message.reply_text("🧠 Resposta:\n\n" + conteudo)
             
         await context.bot.delete_message(chat_id=update.message.chat_id, message_id=msg_temporaria.message_id)
         
